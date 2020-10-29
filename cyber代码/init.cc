@@ -96,14 +96,18 @@ void OnShutdown(int sig) {
 void ExitHandle() { Clear(); }
 
 bool Init(const char* binary_name) {
+  // 获取锁，为了改变state状态而获取锁
   std::lock_guard<std::mutex> lg(g_mutex);
+   // 如果已经初始化，则返回失败
   if (GetState() != STATE_UNINITIALIZED) {
     return false;
   }
-
+// 初始化日志，并且把打印日志线程放入调度器
   InitLogger(binary_name);
   std::signal(SIGINT, OnShutdown);
-  // Register exit handlers
+
+
+  // Register exit handlers  // 注册退出句柄ExitHandle，调用Clear()函数执行
   if (!g_atexit_registered) {
     if (std::atexit(ExitHandle) != 0) {
       AERROR << "Register exit handle failed";
@@ -112,6 +116,8 @@ bool Init(const char* binary_name) {
     AINFO << "Register exit handle succ.";
     g_atexit_registered = true;
   }
+
+  // 设置状态为已经初始化
   SetState(STATE_INITIALIZED);
   return true;
 }

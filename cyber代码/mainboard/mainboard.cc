@@ -17,8 +17,8 @@
 #include "cyber/common/global_data.h"
 #include "cyber/common/log.h"
 #include "cyber/init.h"
-#include "cyber/mainboard/module_argument.h"
-#include "cyber/mainboard/module_controller.h"
+#include "cyber/mainboard/module_argument.h"   // "mainboard.cc"引用
+#include "cyber/mainboard/module_controller.h" // "mainboard.cc"引用
 #include "cyber/state.h"
 
 #include "gflags/gflags.h"
@@ -26,25 +26,31 @@
 using apollo::cyber::mainboard::ModuleArgument;
 using apollo::cyber::mainboard::ModuleController;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
   google::SetUsageMessage("we use this program to load dag and run user apps.");
 
-  // parse the argument
+  // parse the argument   // 解析模块参数
   ModuleArgument module_args;
+  // 解析模块参数 解析模块参数在"module_argument.h"和"module_argument.cc"中的"ModuleArgument"类中
   module_args.ParseArgument(argc, argv);
 
-  // initialize cyber
+  // initialize cyber   // 初始化cyber
+  // 初始化cyber 初始化cyber就是cyber目录下的"init.h"和"init.cc"中
   apollo::cyber::Init(argv[0]);
 
-  // start module
+  // start module    // 启动模块  // 加载模块
   ModuleController controller(module_args);
-  if (!controller.Init()) {
+  if (!controller.Init())
+  {
     controller.Clear();
     AERROR << "module start error.";
     return -1;
   }
 
+  // 等待cyber关闭
   apollo::cyber::WaitForShutdown();
+  // 卸载模块
   controller.Clear();
   AINFO << "exit mainboard.";
 

@@ -55,6 +55,7 @@ class ClassLoaderManager {
 
  private:
   std::mutex libpath_loader_map_mutex_;
+  // 其中"libpath_loader_map_"为map结构，在"LoadLibrary"的时候赋值，key为library_path，而value为ClassLoader
   std::map<std::string, ClassLoader*> libpath_loader_map_;
 };
 

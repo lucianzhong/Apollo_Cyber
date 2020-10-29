@@ -99,6 +99,7 @@ auto Transport::CreateTransmitter(const RoleAttributes& attr,
       transmitter = std::make_shared<IntraTransmitter<M>>(modified_attr);
       break;
 
+// SHM (shared-memory queues) SHM模式的配置可以指定IP和Port
     case OptionalMode::SHM:
       transmitter = std::make_shared<ShmTransmitter<M>>(modified_attr);
       break;

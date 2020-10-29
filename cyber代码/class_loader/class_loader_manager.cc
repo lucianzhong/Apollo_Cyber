@@ -56,6 +56,7 @@ bool ClassLoaderManager::IsLibraryValid(const std::string& library_name) {
 bool ClassLoaderManager::LoadLibrary(const std::string& library_path) {
   std::lock_guard<std::mutex> lck(libpath_loader_map_mutex_);
   if (!IsLibraryValid(library_path)) {
+    // 赋值
     libpath_loader_map_[library_path] =
         new class_loader::ClassLoader(library_path);
   }

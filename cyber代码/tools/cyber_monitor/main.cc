@@ -111,6 +111,9 @@ int main(int argc, char *argv[]) {
 
   Screen *s = Screen::Instance();
 
+// 在主函数中注册了信号量"SIGSEGV"和"SIGABRT"，当系统出现错误的时候（空指针，异常）等，
+// 这时候就会触发打印堆栈信息，也就是说系统报错的时候打印出错的堆栈，方便定位问题
+// 注册信号量，当出现系统错误时，打印堆栈信息
   signal(SIGWINCH, SigResizeHandle);
   signal(SIGINT, SigCtrlCHandle);
   

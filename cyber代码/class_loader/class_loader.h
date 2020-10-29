@@ -24,87 +24,120 @@
 
 #include "cyber/class_loader/class_loader_register_macro.h"
 
-namespace apollo {
-namespace cyber {
-namespace class_loader {
+namespace apollo
+{
+  namespace cyber
+  {
+    namespace class_loader
+    {
 
-/**
+      /**
  *  for library load,createclass object
  */
-class ClassLoader {
- public:
-  explicit ClassLoader(const std::string& library_path);
-  virtual ~ClassLoader();
+      class ClassLoader
+      {
+      public:
+        explicit ClassLoader(const std::string &library_path);
+        virtual ~ClassLoader();
 
-  bool IsLibraryLoaded();
-  bool LoadLibrary();
-  int UnloadLibrary();
-  const std::string GetLibraryPath() const;
-  template <typename Base>
-  std::vector<std::string> GetValidClassNames();
-  template <typename Base>
-  std::shared_ptr<Base> CreateClassObj(const std::string& class_name);
-  template <typename Base>
-  bool IsClassValid(const std::string& class_name);
+        // 动态库是否已经加载
+        bool IsLibraryLoaded();
+        // 加载动态库
+        bool LoadLibrary();
+        // 卸载动态库
+        int UnloadLibrary();
+        // 获取动态库路径
+        const std::string GetLibraryPath() const;
+        template <typename Base>
+        // 获取有效的类名称
+        std::vector<std::string> GetValidClassNames();
+        template <typename Base>
+        // 创建对象
+        std::shared_ptr<Base> CreateClassObj(const std::string &class_name);
+        template <typename Base>
+        // 类是否有效
+        bool IsClassValid(const std::string &class_name);
 
- private:
-  template <typename Base>
-  void OnClassObjDeleter(Base* obj);
+      private:
+        // 当类删除
+        template <typename Base>
+        void OnClassObjDeleter(Base *obj);
 
- private:
-  std::string library_path_;
-  int loadlib_ref_count_;
-  std::mutex loadlib_ref_count_mutex_;
-  int classobj_ref_count_;
-  std::mutex classobj_ref_count_mutex_;
-};
+      private:
+        // 类的路径
+        std::string library_path_;
+        // 类加载引用次数
+        int loadlib_ref_count_;
+        // 类加载引用次数锁
+        std::mutex loadlib_ref_count_mutex_;
+        // 类引用次数
+        int classobj_ref_count_;
+        // 类引用次数锁
+        std::mutex classobj_ref_count_mutex_;
+      };
 
-template <typename Base>
-std::vector<std::string> ClassLoader::GetValidClassNames() {
-  return (utility::GetValidClassNames<Base>(this));
-}
+      // 获取classloader中加载的类的集合
+      template <typename Base>
+      std::vector<std::string> ClassLoader::GetValidClassNames()
+      {
+        return (utility::GetValidClassNames<Base>(this));
+      }
 
-template <typename Base>
-bool ClassLoader::IsClassValid(const std::string& class_name) {
-  std::vector<std::string> valid_classes = GetValidClassNames<Base>();
-  return (std::find(valid_classes.begin(), valid_classes.end(), class_name) !=
-          valid_classes.end());
-}
+      // 查找类是否加载
+      template <typename Base>
+      bool ClassLoader::IsClassValid(const std::string &class_name)
+      {
+        std::vector<std::string> valid_classes = GetValidClassNames<Base>();
+        return (std::find(valid_classes.begin(), valid_classes.end(), class_name) !=
+                valid_classes.end());
+      }
 
-template <typename Base>
-std::shared_ptr<Base> ClassLoader::CreateClassObj(
-    const std::string& class_name) {
-  if (!IsLibraryLoaded()) {
-    LoadLibrary();
-  }
+      //  根据类名称创建对象，并且返回对象指针，注意创建对象的过程中classobj_ref_count_加1，释放对象之后减1，
+      // 通过计数器表明类加载器是否还存在引用关系，而不会释放掉
+      template <typename Base>
+      std::shared_ptr<Base> ClassLoader::CreateClassObj(
+          const std::string &class_name)
+      {
+        if (!IsLibraryLoaded())
+        {
+          // 加载动态库
+          LoadLibrary();
+        }
 
-  Base* class_object = utility::CreateClassObj<Base>(class_name, this);
-  if (nullptr == class_object) {
-    AWARN << "CreateClassObj failed, ensure class has been registered. "
-          << "classname: " << class_name << ",lib: " << GetLibraryPath();
-    return std::shared_ptr<Base>();
-  }
+        // 创建对象  // 根据类名称创建对象
+        Base *class_object = utility::CreateClassObj<Base>(class_name, this);
+        if (nullptr == class_object)
+        {
+          AWARN << "CreateClassObj failed, ensure class has been registered. "
+                << "classname: " << class_name << ",lib: " << GetLibraryPath();
+          return std::shared_ptr<Base>();
+        }
 
-  std::lock_guard<std::mutex> lck(classobj_ref_count_mutex_);
-  classobj_ref_count_ = classobj_ref_count_ + 1;
-  std::shared_ptr<Base> classObjSharePtr(
-      class_object, std::bind(&ClassLoader::OnClassObjDeleter<Base>, this,
-                              std::placeholders::_1));
-  return classObjSharePtr;
-}
+        std::lock_guard<std::mutex> lck(classobj_ref_count_mutex_);
+        // 类引用计数加1
+        classobj_ref_count_ = classobj_ref_count_ + 1;
+        // 构造智能指针，并且指定删除器  // 指定类的析构函数
+        // 可以看到创建类的时候，类引用计数加1，并且绑定类的析构函数(OnClassObjDeleter)，删除对象的时候让类引用计数减1
+        std::shared_ptr<Base> classObjSharePtr(
+            class_object, std::bind(&ClassLoader::OnClassObjDeleter<Base>, this,
+                                    std::placeholders::_1));
+        return classObjSharePtr;
+      }
 
-template <typename Base>
-void ClassLoader::OnClassObjDeleter(Base* obj) {
-  if (nullptr == obj) {
-    return;
-  }
+      template <typename Base>
+      void ClassLoader::OnClassObjDeleter(Base *obj)
+      {
+        if (nullptr == obj)
+        {
+          return;
+        }
 
-  std::lock_guard<std::mutex> lck(classobj_ref_count_mutex_);
-  delete obj;
-  classobj_ref_count_ = classobj_ref_count_ - 1;
-}
+        std::lock_guard<std::mutex> lck(classobj_ref_count_mutex_);
+        delete obj;
+        classobj_ref_count_ = classobj_ref_count_ - 1;
+      }
 
-}  // namespace class_loader
-}  // namespace cyber
-}  // namespace apollo
-#endif  // CYBER_CLASS_LOADER_CLASS_LOADER_H_
+    } // namespace class_loader
+  }   // namespace cyber
+} // namespace apollo
+#endif // CYBER_CLASS_LOADER_CLASS_LOADER_H_
